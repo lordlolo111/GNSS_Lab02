@@ -72,18 +72,16 @@ ecef_values, ecsf_values = select_dop_values(ecef, ecsf)
 print(ecef_values.head())
 print(ecsf_values.head())
 
-# reciever position in Graz
-
+# reciever position in Graz (AUT)
 graz_lat = 47.084503173828125
 graz_lon = 15.421300888061523
 graz_height  = 353.7
+graz_cart = geodetic_to_cart(graz_lat,graz_lon,graz_height)
+print(graz_cart)
 
-test1 = geodetic_to_cart(graz_lat, graz_lon, graz_height)
-print(test1)
-
-graz_x = test1[0]
-graz_y = test1[1]
-graz_z = test1[2]
-
-test2 = cart_to_geodetic(graz_x, graz_y,graz_z)
-print(test2)
+#reciever position in Narvik (NOR)
+narvik_lat = 68.4383796
+narvik_lon = 17.4271978
+narvik_height = 0 #liegt am Meer
+narvik_cart = geodetic_to_cart(narvik_lat,narvik_lon,narvik_height)
+print(narvik_cart)
