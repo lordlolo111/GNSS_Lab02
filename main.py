@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values
+from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart
 import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
@@ -27,7 +27,7 @@ print(ecef.head())
 print(ecsf.head())
 
 # Plotted Orbits
-plot_orbits(ecef, ecsf)
+plot_orbits(ecef, ecsf, 1)
 
 # Groundplot zweier Satelliten
 # Auswahl bestimmter PRN
@@ -65,9 +65,25 @@ ax.legend()
 
 plt.show()
 
-## auswah der ECEF & ECSF Values von 900 - 1200
+## auswahl der ECEF & ECSF Values von 900 - 1200
 
 ecef_values, ecsf_values = select_dop_values(ecef, ecsf)
 
 print(ecef_values.head())
 print(ecsf_values.head())
+
+# reciever position in Graz
+
+graz_lat = 47.084503173828125
+graz_lon = 15.421300888061523
+graz_height  = 353.7
+
+test1 = geodetic_to_cart(graz_lat, graz_lon, graz_height)
+print(test1)
+
+graz_x = test1[0]
+graz_y = test1[1]
+graz_z = test1[2]
+
+test2 = cart_to_geodetic(graz_x, graz_y,graz_z)
+print(test2)

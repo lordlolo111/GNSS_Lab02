@@ -90,3 +90,16 @@ def select_dop_values(ecef, ecsf):
     ecef_values = ecef.set_index("datetime")
     ecsf_values = ecsf.set_index("datetime")
     return ecef_values.between_time("15:00", "20:00"), ecsf_values.between_time("15:00", "20:00")
+
+def geodetic_to_cart(lat,lon,h):
+    # WGS84 Parameter
+    a = 6378137.0  # große Halbachse
+    f = 1 / 298.257223563  # Abplattung
+    e2 = (2*f - f**2)  # erste Exzentrizität^2
+    lat_rad = np.radians(lat)
+    lon_rad = np.radians(lon)
+    N = a / np.sqrt(1 - e2 * np.sin(lat_rad)**2)
+    X = (N + h) * np.cos(lat_rad) * np.cos(lon_rad)
+    Y = (N + h) * np.cos(lat_rad) * np.sin(lon_rad)
+    Z = (N * (1 - e2) + h) * np.sin(lat_rad)
+    return X, Y, Z
