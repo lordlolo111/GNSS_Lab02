@@ -14,7 +14,7 @@ def import_pos_file(filepath):
     )
 
     df["datetime"] = pd.to_datetime(df["date"] + " " + df["time"])
-    df = df.drop(columns=["date", "time"])
+    df = df.drop(columns=["time","date"])
 
     return df
 
@@ -85,3 +85,8 @@ def cart_to_geodetic(X,Y,Z):
     h = p/np.cos(lat) - N
 
     return np.degrees(lat), np.degrees(lon), h
+
+def select_dop_values(ecef, ecsf):
+    ecef_values = ecef.set_index("datetime")
+    ecsf_values = ecsf.set_index("datetime")
+    return ecef_values.between_time("15:00", "20:00"), ecsf_values.between_time("15:00", "20:00")

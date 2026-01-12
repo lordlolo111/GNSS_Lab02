@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic
+from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values
 import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
@@ -64,3 +64,10 @@ ax.set_title(f"Groundtrackplot von PRN {prn1} & {prn2}")
 ax.legend()
 
 plt.show()
+
+## auswah der ECEF & ECSF Values von 900 - 1200
+
+ecef_values, ecsf_values = select_dop_values(ecef, ecsf)
+
+print(ecef_values.head())
+print(ecsf_values.head())
