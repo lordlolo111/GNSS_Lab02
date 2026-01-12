@@ -103,3 +103,6 @@ def geodetic_to_cart(lat,lon,h):
     Y = (N + h) * np.cos(lat_rad) * np.sin(lon_rad)
     Z = (N * (1 - e2) + h) * np.sin(lat_rad)
     return X, Y, Z
+
+
+def check_elevation()

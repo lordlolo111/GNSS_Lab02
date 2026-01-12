@@ -27,7 +27,7 @@ print(ecef.head())
 print(ecsf.head())
 
 # Plotted Orbits
-plot_orbits(ecef, ecsf, 1)
+#plot_orbits(ecef, ecsf, 1)
 
 # Groundplot zweier Satelliten
 # Auswahl bestimmter PRN
@@ -63,7 +63,7 @@ ax.plot(lon2, lat2, 'b' , transform=ccrs.PlateCarree(),
 ax.set_title(f"Groundtrackplot von PRN {prn1} & {prn2}")
 ax.legend()
 
-plt.show()
+#plt.show()
 
 ## auswahl der ECEF & ECSF Values von 900 - 1200
 
