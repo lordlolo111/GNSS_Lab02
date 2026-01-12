@@ -69,8 +69,6 @@ ax.legend()
 
 ecef_values, ecsf_values = select_dop_values(ecef, ecsf)
 
-print(ecef_values.head())
-print(ecsf_values.head())
 
 # reciever position in Graz (AUT)
 graz_lat = 47.084503173828125
