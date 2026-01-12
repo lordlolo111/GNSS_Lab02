@@ -32,7 +32,7 @@ plot_orbits(ecef, ecsf)
 # Groundplot zweier Satelliten
 # Auswahl bestimmter PRN
 prn1 = 4
-prn2 = 16
+prn2 = 7
 satellite_1 = ecef[ecef["satellite"] == prn1]
 satellite_2 = ecef[ecef["satellite"] == prn2] 
 
@@ -54,10 +54,10 @@ gl = ax.gridlines(draw_labels=True)
 gl.top_labels = False   # Oben keine Labels
 gl.left_labels = False  # Links keine Labels
 
-ax.plot(lon1, lat1, transform=ccrs.PlateCarree(),
+ax.plot(lon1, lat1, 'r' , transform=ccrs.PlateCarree(),
         label=f"PRN {prn1}")
 
-ax.plot(lon2, lat2, transform=ccrs.PlateCarree(),
+ax.plot(lon2, lat2, 'b' , transform=ccrs.PlateCarree(),
         label=f"PRN {prn2}")
 
 ax.set_title(f"Groundtrackplot von PRN {prn1} & {prn2}")
