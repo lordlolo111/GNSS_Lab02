@@ -104,5 +104,68 @@ def geodetic_to_cart(lat,lon,h):
     Z = (N * (1 - e2) + h) * np.sin(lat_rad)
     return X, Y, Z
 
+def ecef_to_ned_matrix(lat_deg, lon_deg):
+    lat = np.radians(lat_deg)
+    lon = np.radians(lon_deg)
+    R = np.array([
+        [-np.sin(lat)*np.cos(lon), -np.sin(lon),  np.cos(lat)*np.cos(lon)],
+        [-np.sin(lat)*np.sin(lon),  np.cos(lon),  np.cos(lat)*np.sin(lon)],
+        [ np.cos(lat),              0,            np.sin(lat)]
+    ])
+    return R
 
-def check_elevation()
+def compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg=0):
+    """
+    Berechnet PDOP, HDOP, VDOP für einen Zeitpunkt
+    """
+    G_rows = []
+    visible_sats = []
+
+    rx = np.array(receiver_cart)
+
+    for _, sat in sats.iterrows():
+        sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
+        diff = sat_vec - rx
+        diff_ned = R_matrix.T @ diff
+        elev = 90 - np.degrees(np.arccos(diff_ned[2]/np.linalg.norm(diff_ned)))
+        if elev >= mask_angle_deg:
+            visible_sats.append(sat["satellite"])
+            row = np.append(-diff/np.linalg.norm(diff), 1)
+            G_rows.append(row)
+
+    if len(G_rows) >= 4:
+        G = np.vstack(G_rows)
+        Qx = np.linalg.inv(G.T @ G)
+        Q_ll = R_matrix.T @ Qx[:3, :3] @ R_matrix
+        pdop = np.sqrt(np.trace(Qx[:3, :3]))
+        hdop = np.sqrt(Q_ll[0,0] + Q_ll[1,1])
+        vdop = np.sqrt(Q_ll[2,2])
+    else:
+        pdop, hdop, vdop = np.nan, np.nan, np.nan
+
+    return pdop, hdop, vdop, len(visible_sats)
+
+def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, mask_angle_deg=0, exclude_prns=[]):
+    times = ecef_df.index.unique()
+    R_matrix = ecef_to_ned_matrix(receiver_lat, receiver_lon)
+
+    pdop_list, hdop_list, vdop_list, visible_list = [], [], [], []
+
+    for t in times:
+        sats = ecef_df.loc[t]
+        if isinstance(sats, pd.Series):
+            sats = sats.to_frame().T
+        sats = sats[~sats["satellite"].isin(exclude_prns)]
+        pdop, hdop, vdop, visible = compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg)
+        pdop_list.append(pdop)
+        hdop_list.append(hdop)
+        vdop_list.append(vdop)
+        visible_list.append(visible)
+
+    return pd.DataFrame({
+        "PDOP": pdop_list,
+        "HDOP": hdop_list,
+        "VDOP": vdop_list,
+        "visible_sats": visible_list
+    }, index=times)
+

@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart
+from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart,ecef_to_ned_matrix, compute_dop_epoch, compute_dop_time_series
 import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
@@ -83,3 +83,63 @@ narvik_lon = 17.4271978
 narvik_height = 0 #liegt am Meer
 narvik_cart = geodetic_to_cart(narvik_lat,narvik_lon,narvik_height)
 print(narvik_cart)
+
+# --------------------------
+# DOP-Berechnung für Graz
+# --------------------------
+mask_angles = [0, 5, 10, 15]
+for mask in mask_angles:
+    dop_df = compute_dop_time_series(
+        ecef_values,
+        graz_lat, graz_lon, graz_cart,
+        mask_angle_deg=mask
+    )
+    # PDOP, HDOP, VDOP Plot
+    dop_df[["PDOP","HDOP","VDOP"]].plot(title=f"DOP-Zeitreihe Graz, Mask={mask}°")
+    plt.ylabel("DOP")
+    plt.show()
+
+    # Anzahl sichtbarer Satelliten
+    dop_df["visible_sats"].plot(title=f"Sichtbare Satelliten Graz, Mask={mask}°")
+    plt.ylabel("Anzahl Satelliten")
+    plt.show()
+
+
+# --------------------------
+# DOP-Berechnung für Narvik
+# --------------------------
+mask_angles = [0, 5, 10, 15, 20]
+
+for mask in mask_angles:
+    dop_df = compute_dop_time_series(
+        ecef_values,
+        narvik_lat, narvik_lon, narvik_cart,
+        mask_angle_deg=mask
+    )
+    
+    # PDOP, HDOP, VDOP Plot
+    dop_df[["PDOP", "HDOP", "VDOP"]].plot(
+        title=f"DOP-Zeitreihe Narvik, Mask={mask}°"
+    )
+    plt.ylabel("DOP")
+    plt.show()
+    
+    # Anzahl sichtbarer Satelliten Plot
+    dop_df["visible_sats"].plot(
+        title=f"Sichtbare Satelliten Narvik, Mask={mask}°"
+    )
+    plt.ylabel("Anzahl Satelliten")
+    plt.show()
+
+"""# --------------------------
+# DOP-Berechnung mit ausgeschlossener PRN 4
+# --------------------------
+dop_df_exclude = compute_dop_time_series(
+    ecef_values,
+    graz_lat, graz_lon, graz_cart,
+    mask_angle_deg=10,
+    exclude_prns=[4]
+)
+dop_df_exclude[["PDOP","HDOP","VDOP"]].plot(title="DOP Graz ohne PRN 4, Mask=10°")
+plt.ylabel("DOP")
+plt.show()"""
