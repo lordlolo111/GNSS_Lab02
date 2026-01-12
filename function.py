@@ -169,3 +169,62 @@ def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, 
         "visible_sats": visible_list
     }, index=times)
 
+def compute_az_el(sat_positions, receiver_cart, receiver_lat, receiver_lon):
+    """
+    Berechnet Azimut und Elevation für Satelliten
+    sat_positions: DataFrame mit Spalten ["X","Y","Z"]
+    receiver_cart: ECEF Koordinaten des Empfängers
+    receiver_lat, receiver_lon: Geodetic Position Empfänger
+    """
+    rx = np.array(receiver_cart)
+    R = ecef_to_ned_matrix(receiver_lat, receiver_lon)  # ECEF -> NED
+    az_list = []
+    el_list = []
+
+    for _, sat in sat_positions.iterrows():
+        sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
+        diff = sat_vec - rx
+        diff_ned = R.T @ diff
+        # Azimut
+        az = np.degrees(np.arctan2(diff_ned[1], diff_ned[0]))
+        if az < 0:
+            az += 360
+        # Elevation
+        el = 90 - np.degrees(np.arccos(diff_ned[2]/np.linalg.norm(diff_ned)))
+        az_list.append(az)
+        el_list.append(el)
+    return np.array(az_list), np.array(el_list)
+
+
+def plot_skyplot(az, el, prn=None, mask_angle=0, title="Skyplot"): #todo: LABEL in weiss
+    """
+    Erstellt einen Skyplot (Azimut-Elevation)
+    az, el: Arrays in Grad
+    prn: optional, PRN-Nummern für Beschriftung
+    mask_angle: minimal sichtbarer Elevationwinkel
+    """
+    fig = plt.figure(figsize=(6,6))
+    ax = plt.subplot(111, polar=True)
+    
+    # Polarplot: az=0° oben (Nord), 90°=Ost, 180°=Süd, 270°=West
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    
+    # Umwandlung Elevation -> r für Polarplot (r=0 zenith, r=90 horizon)
+    r = 90 - np.array(el)
+    
+    # Maskenwinkel einzeichnen
+    ax.set_rlim(0, 90)
+    ax.plot(np.linspace(0, 2*np.pi, 100), np.ones(100)*mask_angle, 'r--', label=f"Mask {mask_angle}°")
+    
+    # Satelliten plotten
+    ax.scatter(np.radians(az), r, c='blue', s=50)
+    
+    if prn is not None:
+        for i, txt in enumerate(prn):
+            ax.text(np.radians(az[i]), r[i], str(txt), fontsize=8, ha='center', va='center')
+    
+    ax.set_title(title)
+    ax.set_rlabel_position(135)
+    plt.legend()
+    plt.show()

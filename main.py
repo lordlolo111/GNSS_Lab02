@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart,ecef_to_ned_matrix, compute_dop_epoch, compute_dop_time_series
+from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart,ecef_to_ned_matrix, compute_dop_epoch, compute_dop_time_series, compute_az_el, plot_skyplot
 import numpy as np
 import pandas as pd
 import cartopy.crs as ccrs
@@ -27,7 +27,7 @@ print(ecef.head())
 print(ecsf.head())
 
 # Plotted Orbits
-#plot_orbits(ecef, ecsf, 1)
+plot_orbits(ecef, ecsf)
 
 # Groundplot zweier Satelliten
 # Auswahl bestimmter PRN
@@ -83,6 +83,15 @@ narvik_lon = 17.4271978
 narvik_height = 0 #liegt am Meer
 narvik_cart = geodetic_to_cart(narvik_lat,narvik_lon,narvik_height)
 print(narvik_cart)
+
+
+# Skyplot für alle Satelliten zu einem bestimmten Zeitpunkt (erste Zeile) # Todo: Umschreiben
+time_example = ecef_values.index[0]
+sats_at_time = ecef_values.loc[time_example]
+az, el = compute_az_el(sats_at_time, graz_cart, graz_lat, graz_lon)
+prn_numbers = sats_at_time["satellite"].values
+
+plot_skyplot(az, el, prn=prn_numbers, mask_angle=5, title="Skyplot Graz, Mask 5°")
 
 # --------------------------
 # DOP-Berechnung für Graz
