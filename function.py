@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import os
 
 def import_pos_file(filepath):
@@ -87,6 +88,7 @@ def cart_to_geodetic(X,Y,Z):
     return np.degrees(lat), np.degrees(lon), h
 
 def select_dop_values(ecef, ecsf):
+    # wählt Satellitenpositonen anhand des vorgebenen Zeitraumes aus
     ecef_values = ecef.set_index("datetime")
     ecsf_values = ecsf.set_index("datetime")
     return ecef_values.between_time("15:00", "20:00"), ecsf_values.between_time("15:00", "20:00")
@@ -104,7 +106,8 @@ def geodetic_to_cart(lat,lon,h):
     Z = (N * (1 - e2) + h) * np.sin(lat_rad)
     return X, Y, Z
 
-def ecef_to_ned_matrix(lat_deg, lon_deg):
+def ecef_to_neu_matrix(lat_deg, lon_deg):
+    # rechnet ECEF-Koodrinaten in North, East, Up um und erstellt eine Rotationsmatrix (Folie S. 17)
     lat = np.radians(lat_deg)
     lon = np.radians(lon_deg)
     R = np.array([
@@ -113,6 +116,147 @@ def ecef_to_ned_matrix(lat_deg, lon_deg):
         [ np.cos(lat),              0,            np.sin(lat)]
     ])
     return R
+
+def compute_az_el(sat_positions, receiver_cart, receiver_lat, receiver_lon):
+    """
+    Berechnet Azimut und Elevation für Satelliten
+    sat_positions: DataFrame mit Spalten ["X","Y","Z"]
+    receiver_cart: ECEF Koordinaten des Empfängers
+    receiver_lat, receiver_lon: Geodetic Position Empfänger
+    """
+    rx = np.array(receiver_cart)
+    R = ecef_to_neu_matrix(receiver_lat, receiver_lon)  # ECEF -> NEU
+    az_list = []
+    el_list = []
+
+    for _, sat in sat_positions.iterrows():
+        sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
+        diff = sat_vec - rx
+        diff_ned = R.T @ diff
+        # Azimuth
+        az = np.degrees(np.arctan2(diff_ned[1], diff_ned[0]))
+        if az < 0:
+            az += 360
+        # Elevation
+        el = 90 - np.degrees(np.arccos(diff_ned[2]/np.linalg.norm(diff_ned)))
+        az_list.append(az)
+        el_list.append(el)
+    return np.array(az_list), np.array(el_list)
+
+
+
+def plot_skyplot(
+    azel_df,
+    mask_angle=0,
+    title="Skyplot"
+):
+    """
+    Erstellt einen GNSS-Skyplot (Azimut / Elevation)
+
+    azel_df : DataFrame mit Spalten
+        ['datetime', 'satellite', 'az', 'el']
+    mask_angle : Elevationsmaske in Grad
+    """
+
+    required_cols = {"satellite", "az", "el"}
+    if not required_cols.issubset(azel_df.columns):
+        raise ValueError(
+            f"azel_df muss die Spalten {required_cols} enthalten"
+        )
+
+    # ---------- Plot ----------
+    fig = plt.figure(figsize=(7, 7))
+    ax = plt.subplot(111, polar=True)
+
+    # Polar-Konvention (GNSS)
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)
+    ax.set_rlim(0, 90)
+
+    # Azimut-Ticks alle 30°
+    az_ticks = np.arange(0, 360, 30)
+    ax.set_thetagrids(az_ticks, labels=[f"{a}°" for a in az_ticks])
+
+    # Elevation außen beschriften
+    ax.set_rlabel_position(0)
+    ax.set_rticks([0, 30, 60, 90])
+    ax.set_rgrids(
+        [0, 30, 60, 90],
+        labels=["90°", "60°", "30°", "0°"]
+    )
+
+    # Elevationsmaske
+    if mask_angle > 0:
+        theta = np.linspace(0, 2*np.pi, 360)
+        r_mask = 90 - mask_angle
+        ax.plot(
+            theta,
+            np.full_like(theta, r_mask),
+            "r--",
+            linewidth=1,
+            label=f"Mask {mask_angle}°"
+        )
+
+    # Satelliten (PRN sortiert)
+    prns = np.sort(azel_df["satellite"].unique())
+    cmap = cm.get_cmap("tab20", len(prns))
+
+    for i, prn in enumerate(prns):
+        sat = azel_df[
+            (azel_df["satellite"] == prn) &
+            (azel_df["el"] >= mask_angle)
+        ]
+
+        if sat.empty:
+            continue
+
+        theta = np.radians(sat["az"].values)
+        r = 90 - sat["el"].values
+
+        # Bahn
+        ax.plot(
+            theta,
+            r,
+            color=cmap(i),
+            linewidth=1.5,
+            label=f"PRN {prn}"
+        )
+
+        # Letzter Punkt markieren
+        ax.scatter(
+            theta[-1],
+            r[-1],
+            color=cmap(i),
+            s=40,
+            zorder=3
+        )
+
+    ax.set_title(title)
+    ax.grid(True)
+    ax.legend(
+        bbox_to_anchor=(1.05, 1.0),
+        loc="upper left",
+        fontsize=8
+    )
+
+    plt.tight_layout()
+    plt.show()
+
+def compute_az_el_time_series(ecef_df, receiver_cart, receiver_lat, receiver_lon):
+    records = []
+
+    for t, sats in ecef_df.groupby("datetime"):
+        az, el = compute_az_el(sats, receiver_cart, receiver_lat, receiver_lon)
+        for prn, a, e in zip(sats["satellite"], az, el):
+            records.append({
+                "datetime": t,
+                "satellite": prn,
+                "az": a,
+                "el": e
+            })
+
+    return pd.DataFrame(records)
+
 
 def compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg=0):
     """
@@ -147,7 +291,7 @@ def compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg=0):
 
 def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, mask_angle_deg=0, exclude_prns=[]):
     times = ecef_df.index.unique()
-    R_matrix = ecef_to_ned_matrix(receiver_lat, receiver_lon)
+    R_matrix = ecef_to_neu_matrix(receiver_lat, receiver_lon)
 
     pdop_list, hdop_list, vdop_list, visible_list = [], [], [], []
 
@@ -160,7 +304,7 @@ def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, 
         pdop_list.append(pdop)
         hdop_list.append(hdop)
         vdop_list.append(vdop)
-        visible_list.append(visible)
+        visible_list.append((visible))
 
     return pd.DataFrame({
         "PDOP": pdop_list,
@@ -169,62 +313,3 @@ def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, 
         "visible_sats": visible_list
     }, index=times)
 
-def compute_az_el(sat_positions, receiver_cart, receiver_lat, receiver_lon):
-    """
-    Berechnet Azimut und Elevation für Satelliten
-    sat_positions: DataFrame mit Spalten ["X","Y","Z"]
-    receiver_cart: ECEF Koordinaten des Empfängers
-    receiver_lat, receiver_lon: Geodetic Position Empfänger
-    """
-    rx = np.array(receiver_cart)
-    R = ecef_to_ned_matrix(receiver_lat, receiver_lon)  # ECEF -> NED
-    az_list = []
-    el_list = []
-
-    for _, sat in sat_positions.iterrows():
-        sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
-        diff = sat_vec - rx
-        diff_ned = R.T @ diff
-        # Azimut
-        az = np.degrees(np.arctan2(diff_ned[1], diff_ned[0]))
-        if az < 0:
-            az += 360
-        # Elevation
-        el = 90 - np.degrees(np.arccos(diff_ned[2]/np.linalg.norm(diff_ned)))
-        az_list.append(az)
-        el_list.append(el)
-    return np.array(az_list), np.array(el_list)
-
-
-def plot_skyplot(az, el, prn=None, mask_angle=0, title="Skyplot"): #todo: LABEL in weiss
-    """
-    Erstellt einen Skyplot (Azimut-Elevation)
-    az, el: Arrays in Grad
-    prn: optional, PRN-Nummern für Beschriftung
-    mask_angle: minimal sichtbarer Elevationwinkel
-    """
-    fig = plt.figure(figsize=(6,6))
-    ax = plt.subplot(111, polar=True)
-    
-    # Polarplot: az=0° oben (Nord), 90°=Ost, 180°=Süd, 270°=West
-    ax.set_theta_zero_location("N")
-    ax.set_theta_direction(-1)
-    
-    # Umwandlung Elevation -> r für Polarplot (r=0 zenith, r=90 horizon)
-    r = 90 - np.array(el)
-    
-    # Maskenwinkel einzeichnen
-    ax.set_rlim(0, 90)
-    ax.plot(np.linspace(0, 2*np.pi, 100), np.ones(100)*mask_angle, 'r--', label=f"Mask {mask_angle}°")
-    
-    # Satelliten plotten
-    ax.scatter(np.radians(az), r, c='blue', s=50)
-    
-    if prn is not None:
-        for i, txt in enumerate(prn):
-            ax.text(np.radians(az[i]), r[i], str(txt), fontsize=8, ha='center', va='center')
-    
-    ax.set_title(title)
-    ax.set_rlabel_position(135)
-    plt.legend()
-    plt.show()
