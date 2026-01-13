@@ -1,8 +1,7 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart,ecef_to_neu_matrix, compute_dop_epoch, compute_dop_time_series, compute_az_el_time_series, plot_skyplot
+from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart, compute_dop_time_series, compute_az_el_time_series, plot_skyplot
 import numpy as np
-import pandas as pd
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
@@ -70,9 +69,7 @@ ax.legend()
 #plt.show()
 
 ## auswahl der ECEF & ECSF Values von 900 - 1200
-
 ecef_values, ecsf_values = select_dop_values(ecef, ecsf)
-
 
 # Empfänger-Position in Graz (AUT) + Umwandlung in kartesische Koord.
 graz_lat = 47.084503173828125
@@ -87,7 +84,6 @@ narvik_lon = 17.4271978
 narvik_height = 0 #liegt am Meer
 narvik_cart = geodetic_to_cart(narvik_lat,narvik_lon,narvik_height)
 print(narvik_cart)
-
 
 # Plot Skyplots
 #### GRAZ
@@ -108,14 +104,9 @@ plot_skyplot(
     mask_angle=5,
     title="Skyplot Narvik – alle PRNs"
 )
-
-
-
-
-# --------------------------
-# DOP-Berechnung für Graz
-# --------------------------
+# Definieren der unterschiedlichen Masken
 mask_angles = [0, 5, 10, 15, 20]
+# DOP-Berechnung für Graz
 for mask in mask_angles:
     dop_df = compute_dop_time_series(
         ecef_values,
@@ -132,44 +123,23 @@ for mask in mask_angles:
     plt.ylabel("Anzahl Satelliten")
     plt.yticks(range(int(dop_df["visible_sats"].min()), int(dop_df["visible_sats"].max())+1))
     plt.show()
-
-
-# --------------------------
 # DOP-Berechnung für Narvik
-# --------------------------
-mask_angles = [0, 5, 10, 15, 20]
-
 for mask in mask_angles:
     dop_df = compute_dop_time_series(
         ecef_values,
         narvik_lat, narvik_lon, narvik_cart,
         mask_angle_deg=mask
     )
-    
     # PDOP, HDOP, VDOP Plot
     dop_df[["PDOP", "HDOP", "VDOP"]].plot(
         title=f"DOP-Zeitreihe Narvik, Mask={mask}°"
     )
     plt.ylabel("DOP")
     plt.show()
-    
     # Anzahl sichtbarer Satelliten Plot
     dop_df["visible_sats"].plot(
-        title=f"Sichtbare Satelliten Narvik, Mask={mask}°"
-    )
+        title=f"Sichtbare Satelliten Narvik, Mask={mask}°")
+    
     plt.ylabel("Anzahl Satelliten")
     plt.yticks(range(int(dop_df["visible_sats"].min()), int(dop_df["visible_sats"].max())+1))
     plt.show()
-
-"""# --------------------------
-# DOP-Berechnung mit ausgeschlossener PRN 4
-# --------------------------
-dop_df_exclude = compute_dop_time_series(
-    ecef_values,
-    graz_lat, graz_lon, graz_cart,
-    mask_angle_deg=10,
-    exclude_prns=[4]
-)
-dop_df_exclude[["PDOP","HDOP","VDOP"]].plot(title="DOP Graz ohne PRN 4, Mask=10°")
-plt.ylabel("DOP")
-plt.show()"""
