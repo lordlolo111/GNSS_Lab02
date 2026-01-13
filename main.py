@@ -46,9 +46,13 @@ lon1 = np.degrees(lon1)
 lon2 = np.unwrap(np.radians(lon2))
 lon2 = np.degrees(lon2)
 
-# Eigentlicher Groundplot
+# Groundplot
 fig = plt.figure(figsize=(12, 6))
 ax = plt.axes(projection=ccrs.PlateCarree())
+ax.set_extent([-180, 180, -90, 90]) 
+ax.add_feature(cfeature.LAND, edgecolor='black')  # Landflächen mit schwarzem Rand
+ax.add_feature(cfeature.OCEAN, facecolor='lightblue')  # Ozeane in blauer Farbe
+ax.add_feature(cfeature.BORDERS, linestyle='-', linewidth=1)  # Grenzlinien zwischen Ländern
 ax.coastlines()
 gl = ax.gridlines(draw_labels=True)
 gl.top_labels = False   # Oben keine Labels
