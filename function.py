@@ -181,7 +181,6 @@ def plot_skyplot(azel_df,mask_angle=0,title="Skyplot"):
             linewidth=1.5,
             label=f"PRN {prn}"
         )
-
         # Letzter Punkt jedes Satelliten wird markiert
         ax.scatter(
             theta[-1],

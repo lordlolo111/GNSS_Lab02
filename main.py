@@ -113,16 +113,26 @@ for mask in mask_angles:
         graz_lat, graz_lon, graz_cart,
         mask_angle_deg=mask
     )
+
+    dop_df.index.name = "Uhrzeit" # Index heißt nicht datetime sondern Uhrzeit
+
     # PDOP, HDOP, VDOP Plot
     dop_df[["PDOP","HDOP","VDOP"]].plot(title=f"DOP-Zeitreihe Graz, Mask={mask}°")
     plt.ylabel("DOP")
     plt.show()
 
     # Anzahl sichtbarer Satelliten
-    dop_df["visible_sats"].plot(title=f"Sichtbare Satelliten Graz, Mask={mask}°")
-    plt.ylabel("Anzahl Satelliten")
-    plt.yticks(range(int(dop_df["visible_sats"].min()), int(dop_df["visible_sats"].max())+1))
+    ax = dop_df["visible_sats"].plot(title=f"Sichtbare Satelliten Graz, Mask={mask}°")
+    ax.set_ylabel("Anzahl Satelliten")
+    ax.set_ylim(0, 16)
+    ax.set_yticks(range(0, 16, 3))
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.grid(which='minor', axis='x', alpha=0.2)
+
     plt.show()
+
+
+
 # DOP-Berechnung für Narvik
 for mask in mask_angles:
     dop_df = compute_dop_time_series(
@@ -130,6 +140,9 @@ for mask in mask_angles:
         narvik_lat, narvik_lon, narvik_cart,
         mask_angle_deg=mask
     )
+
+    dop_df.index.name = "Uhrzeit" # Index heißt nicht datetime sondern Uhrzeit   
+
     # PDOP, HDOP, VDOP Plot
     dop_df[["PDOP", "HDOP", "VDOP"]].plot(
         title=f"DOP-Zeitreihe Narvik, Mask={mask}°"
@@ -137,9 +150,14 @@ for mask in mask_angles:
     plt.ylabel("DOP")
     plt.show()
     # Anzahl sichtbarer Satelliten Plot
-    dop_df["visible_sats"].plot(
-        title=f"Sichtbare Satelliten Narvik, Mask={mask}°")
-    
-    plt.ylabel("Anzahl Satelliten")
-    plt.yticks(range(int(dop_df["visible_sats"].min()), int(dop_df["visible_sats"].max())+1))
+    ax = dop_df["visible_sats"].plot(
+    title=f"Sichtbare Satelliten Narvik, Mask={mask}°"
+    )
+    ax.set_ylabel("Anzahl Satelliten")
+    ax.set_ylim(0, 16)
+    ax.set_yticks(range(0, 16, 3))
+    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.grid(which='minor', axis='x', alpha=0.2)
+
+
     plt.show()
