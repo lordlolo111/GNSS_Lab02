@@ -8,10 +8,19 @@ import cartopy.feature as cfeature
 # Arbeitsumgebung und Import der Daten
 dir = os.getcwd()
 data = os.path.join(dir, "Daten")
+results = os.path.join(dir, "Ergebnisse")
+
+#ECEF
 ecef = import_pos_file(data + "/pos_ECEF.txt")
 print(ecef.head())
+ecef_prn = sorted(ecef["satellite"].unique())
+print("ECEF PRN:", ecef_prn)
+
+#ECSF
 ecsf = import_pos_file(data + "/pos_ECSF.txt")
 print(ecsf.head())
+ecsf_prn = sorted(ecsf["satellite"].unique())
+print("ECSF PRN:", ecsf_prn)
 
 # Erdparameter
 r = 6371000 # Erdradius in Metern
@@ -76,14 +85,16 @@ graz_lat = 47.084503173828125
 graz_lon = 15.421300888061523
 graz_height  = 353.7
 graz_cart = geodetic_to_cart(graz_lat,graz_lon,graz_height)
-print(graz_cart)
+print("Graz:", graz_cart)
 
 #Empfänger-Position in Narvik (NOR) + Umwandlung in kart. Koord.
 narvik_lat = 68.4383796
 narvik_lon = 17.4271978
 narvik_height = 0 #liegt am Meer
 narvik_cart = geodetic_to_cart(narvik_lat,narvik_lon,narvik_height)
-print(narvik_cart)
+print("Narvik:", narvik_cart)
+
+
 
 # Plot Skyplots
 #### GRAZ
@@ -104,7 +115,7 @@ plot_skyplot(
     mask_angle=5,
     title="Skyplot Narvik – alle PRNs"
 )
-# Definieren der unterschiedlichen Masken
+# Definieren der unterschiedlichen Elevation-Masks
 mask_angles = [0, 5, 10, 15, 20]
 # DOP-Berechnung für Graz
 for mask in mask_angles:
@@ -117,20 +128,26 @@ for mask in mask_angles:
     dop_df.index.name = "Uhrzeit" # Index heißt nicht datetime sondern Uhrzeit
 
     # PDOP, HDOP, VDOP Plot
-    dop_df[["PDOP","HDOP","VDOP"]].plot(title=f"DOP-Zeitreihe Graz, Mask={mask}°")
-    plt.ylabel("DOP")
-    plt.show()
+    fig, ax = plt.subplots(figsize=(8, 8))
+    dop_df[["PDOP", "HDOP", "VDOP"]].plot(ax=ax)
+    ax.set_title(f"DOP-Zeitreihe Graz (Elevation Mask = {mask}°)")
+    ax.set_ylabel("DOP")
+    filename = f"Graz_DOP_{mask}.png"
+    plt.savefig(os.path.join(results, filename), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
 
     # Anzahl sichtbarer Satelliten
-    ax = dop_df["visible_sats"].plot(title=f"Sichtbare Satelliten Graz, Mask={mask}°")
+    fig, ax = plt.subplots(figsize=(8, 8))
+    dop_df["visible_sats"].plot(ax=ax)
+    ax.set_title(f"Sichtbare Satelliten Graz (Elevation Mask = {mask}°)")
     ax.set_ylabel("Anzahl Satelliten")
     ax.set_ylim(0, 16)
-    ax.set_yticks(range(0, 16, 3))
-    ax.grid(True, linestyle='--', alpha=0.7)
-    ax.grid(which='minor', axis='x', alpha=0.2)
-
-    plt.show()
-
+    ax.set_yticks(range(0, 17, 3))
+    ax.grid(True, linestyle="--", alpha=0.7)
+    filename = f"Graz_#_Satelliten_{mask}.png"
+    plt.savefig(os.path.join(results, filename), dpi=300, bbox_inches="tight")
+    plt.close(fig)
 
 
 # DOP-Berechnung für Narvik
@@ -144,20 +161,22 @@ for mask in mask_angles:
     dop_df.index.name = "Uhrzeit" # Index heißt nicht datetime sondern Uhrzeit   
 
     # PDOP, HDOP, VDOP Plot
-    dop_df[["PDOP", "HDOP", "VDOP"]].plot(
-        title=f"DOP-Zeitreihe Narvik, Mask={mask}°"
-    )
-    plt.ylabel("DOP")
-    plt.show()
+    fig, ax = plt.subplots(figsize=(8, 8))
+    dop_df[["PDOP", "HDOP", "VDOP"]].plot(ax=ax)
+    ax.set_title(f"DOP-Zeitreihe Narvik (Elevation Mask = {mask}°)")
+    ax.set_ylabel("DOP")
+    filename = f"Narvik_DOP_{mask}.png"
+    plt.savefig(os.path.join(results, filename), dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
     # Anzahl sichtbarer Satelliten Plot
-    ax = dop_df["visible_sats"].plot(
-    title=f"Sichtbare Satelliten Narvik, Mask={mask}°"
-    )
+    fig, ax = plt.subplots(figsize=(8, 8))
+    dop_df["visible_sats"].plot(ax=ax)
+    ax.set_title(f"Sichtbare Satelliten Narvik (Elevation Mask = {mask}°)")
     ax.set_ylabel("Anzahl Satelliten")
     ax.set_ylim(0, 16)
-    ax.set_yticks(range(0, 16, 3))
-    ax.grid(True, linestyle='--', alpha=0.7)
-    ax.grid(which='minor', axis='x', alpha=0.2)
-
-
-    plt.show()
+    ax.set_yticks(range(0, 17, 3))
+    ax.grid(True, linestyle="--", alpha=0.7)
+    filename = f"Narvik_#_Satelliten_{mask}.png"
+    plt.savefig(os.path.join(results, filename), dpi=300, bbox_inches="tight")
+    plt.close(fig)
