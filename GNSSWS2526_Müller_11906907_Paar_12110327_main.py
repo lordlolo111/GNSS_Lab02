@@ -1,6 +1,6 @@
 import os
 import matplotlib.pyplot as plt
-from function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart, compute_dop_time_series, compute_az_el_time_series, plot_skyplot
+from GNSSWS2526_Müller_11906907_Paar_12110327_function import import_pos_file, plot_orbits, cart_to_geodetic, select_dop_values, geodetic_to_cart, compute_dop_time_series, compute_az_el_time_series, plot_skyplot
 import numpy as np
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature

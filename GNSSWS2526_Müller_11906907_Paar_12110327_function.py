@@ -18,9 +18,10 @@ def import_pos_file(filepath):
 def plot_orbits(ecef, ecsf, satellite_id = None, r=6371000):
 
     # Kugelparameter
-    u = np.linspace(0, 2*np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
-    # Erde
+    u = np.linspace(0, 2*np.pi, 100) # Längengrade bis 2pi
+    v = np.linspace(0, np.pi, 100) # Breitengrade bis pi
+
+    # Erdkugel
     x = r * np.outer(np.cos(u),np.sin(v)) # Vektorprodukt
     y = r * np.outer(np.sin(u), np.sin(v))
     z = r * np.outer(np.ones_like(u), np.cos(v))
@@ -43,8 +44,8 @@ def plot_orbits(ecef, ecsf, satellite_id = None, r=6371000):
     fig = plt.figure(figsize=(14, 8))
     # ECEF
     ax1 = fig.add_subplot(1,2,1, projection="3d")
-    ax1.plot_surface(x, y, z, color="lightblue", alpha=0.4,)
-    ax1.plot(x_sat1, y_sat1, z_sat1, color="red", linewidth=2, label="Satellite-Orbits")
+    ax1.plot_surface(x, y, z, color="lightblue", alpha=0.4,) # Plot der Erde
+    ax1.plot(x_sat1, y_sat1, z_sat1, color="red", linewidth=2, label="Satellite-Orbits") # Plot der ECEF-Orbits
     ax1.set_xlabel("X [m]")
     ax1.set_ylabel("Y [m]")
     ax1.set_zlabel("Z [m]")
@@ -52,8 +53,8 @@ def plot_orbits(ecef, ecsf, satellite_id = None, r=6371000):
     ax1.set_box_aspect([1, 1, 1])
     #ECSF
     ax2 = fig.add_subplot(1,2,2, projection= "3d")
-    ax2.plot_surface(x, y, z, color="lightblue", alpha=0.4,)
-    ax2.plot(x_sat2, y_sat2, z_sat2, color="blue", linewidth=2, label="Satellite-Orbits")
+    ax2.plot_surface(x, y, z, color="lightblue", alpha=0.4,) #dito
+    ax2.plot(x_sat2, y_sat2, z_sat2, color="blue", linewidth=2, label="Satellite-Orbits") #dito
     ax2.set_xlabel("X [m]")
     ax2.set_ylabel("Y [m]")
     ax2.set_zlabel("Z [m]")
@@ -71,14 +72,14 @@ def cart_to_geodetic(X,Y,Z):
     e2  = (a**2 - b**2) / a**2   # erste Exzentrizität^2
     ep2 = (a**2 - b**2) / b**2   # zweite Exzentrizität^2
 
-    # mathematische Formeln zur Koordinatentransformation lt. Angabe
+    # mathematische Formeln zur Koordinatentransformation lt. Angabe (WGS-84)
     p = np.sqrt(X**2 + Y**2)
     theta = np.arctan2(Z*a, p*b)
     lon = np.arctan2(Y, X)
     lat = np.arctan2(Z+ep2*b*np.sin(theta)**3, p - e2 * a * np.cos(theta)**3)
-    N = a / np.sqrt(1 - e2 * np.sin(lat)**2)
-    h = p/np.cos(lat) - N
-    return np.degrees(lat), np.degrees(lon), h
+    N = a / np.sqrt(1 - e2 * np.sin(lat)**2) #Krümmungsradius
+    h = p/np.cos(lat) - N #ellipsoidische Höhe
+    return np.degrees(lat), np.degrees(lon), h # Ergebnis in Grad
 
 def select_dop_values(ecef, ecsf): # wählt Satellitenpositonen anhand des vorgebenen Zeitraumes für die Daten aus
     ecef_values = ecef.set_index("datetime")
@@ -103,29 +104,29 @@ def geodetic_to_cart(lat,lon,h):
 def ecef_to_neu_matrix(lat_deg, lon_deg): # rechnet ECEF-Koordinaten in lokales Horizontsystem (North, East, Up) um und erstellt eine Rotationsmatrix (Folie S. 17)
     lat = np.radians(lat_deg)
     lon = np.radians(lon_deg)
-    R = np.array([
-        [-np.sin(lat)*np.cos(lon), -np.sin(lon),  np.cos(lat)*np.cos(lon)],
-        [-np.sin(lat)*np.sin(lon),  np.cos(lon),  np.cos(lat)*np.sin(lon)],
-        [ np.cos(lat),              0,            np.sin(lat)]
+    R = np.array([ # Rotationsmatrix für die Koordinatentransformatione, Zeile gibt Richtung an
+        [-np.sin(lat)*np.cos(lon), -np.sin(lon),  np.cos(lat)*np.cos(lon)], # North
+        [-np.sin(lat)*np.sin(lon),  np.cos(lon),  np.cos(lat)*np.sin(lon)], # East
+        [ np.cos(lat),              0,            np.sin(lat)] # Up
     ])
     return R
 
 def compute_az_el(sat_positions, receiver_cart, receiver_lat, receiver_lon): # berechnet Azimuth und Elevation per Satellit
     rx = np.array(receiver_cart)
-    R = ecef_to_neu_matrix(receiver_lat, receiver_lon)  # ECEF -> N-E-U
+    R = ecef_to_neu_matrix(receiver_lat, receiver_lon)  # Rotationsmatrix für Empfängerort (Transformation von ECEF -> N-E-U)
     az_list = []
     el_list = []
 
-    for _, sat in sat_positions.iterrows():
+    for _, sat in sat_positions.iterrows(): # Vektor von jedem Satellit zu Empfänger berechnet & in neu N-E-U transformiert
         sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
         diff = sat_vec - rx
-        diff_neu = R.T @ diff # WAS MACHT DAS? Erklörung gesucht!
+        diff_neu = R.T @ diff
         # Azimuth
-        az = np.degrees(np.arctan2(diff_neu[1], diff_neu[0]))
+        az = np.degrees(np.arctan2(diff_neu[1], diff_neu[0])) # Winkel in East und North Komponente
         if az < 0:
             az += 360
         # Elevation
-        el = 90 - np.degrees(np.arccos(diff_neu[2]/np.linalg.norm(diff_neu)))
+        el = 90 - np.degrees(np.arccos(diff_neu[2]/np.linalg.norm(diff_neu))) # Winkel in Up - Komponente
         az_list.append(az)
         el_list.append(el)
     return np.array(az_list), np.array(el_list)
@@ -134,14 +135,14 @@ def compute_az_el(sat_positions, receiver_cart, receiver_lat, receiver_lon): # b
 
 def plot_skyplot(azel_df,mask_angle=0,title="Skyplot"):
     fig = plt.figure(figsize=(7, 7))
-    ax = plt.subplot(111, polar=True)
-    # Polar-Konvention (GNSS)
+    ax = plt.subplot(111, polar=True) 
+    # Polardastellung
     ax.set_theta_zero_location("N")
     ax.set_theta_direction(-1)
     ax.set_rlim(0, 90)
-    # Azimut-Ticks alle 30°
-    az_ticks = np.arange(0, 360, 30)
+    az_ticks = np.arange(0, 360, 30) # Azimut-Ticks alle 30°
     ax.set_thetagrids(az_ticks, labels=[f"{a}°" for a in az_ticks])
+
     # Elevation außen beschriften
     ax.set_rlabel_position(0)
     ax.set_rticks([0, 30, 60, 90])
@@ -154,19 +155,13 @@ def plot_skyplot(azel_df,mask_angle=0,title="Skyplot"):
     if mask_angle > 0:
         theta = np.linspace(0, 2*np.pi, 360)
         r_mask = 90 - mask_angle
-        ax.plot(
-            theta,
-            np.full_like(theta, r_mask),
-            "r--",
-            linewidth=1,
-            label=f"Mask {mask_angle}°"
-        )
+        ax.plot(theta, np.full_like(theta, r_mask), "r--", linewidth=1, label=f"Mask {mask_angle}°")
 
     # Satelliten (PRN sortiert)
     prns = np.sort(azel_df["satellite"].unique())
     cmap = cm.get_cmap("tab20", len(prns))
 
-    for i, prn in enumerate(prns): # schließt Satelliten mit geringerer Elevation als Mask aus
+    for i, prn in enumerate(prns): # schließt Satelliten mit geringerer Elevation als Elevtation-Mask aus
         sat = azel_df[
             (azel_df["satellite"] == prn) &
             (azel_df["el"] >= mask_angle)
@@ -195,11 +190,11 @@ def plot_skyplot(azel_df,mask_angle=0,title="Skyplot"):
     plt.tight_layout()
     plt.show()
 
-def compute_az_el_time_series(ecef, receiver_cart, receiver_lat, receiver_lon): # berechnet Azimuth und Elevation für alle Epochen
+def compute_az_el_time_series(ecef, receiver_cart, receiver_lat, receiver_lon): # berechnet Azimuth und Elevation für alle notwendigen Epochen
     records = []
-    for t, sats in ecef.groupby("datetime"): # AUCH NOCHMAL ANSCHAUEN UND KOMMENTIEREN
+    for t, sats in ecef.groupby("datetime"): # iteriert über jeden Zeitpunkt
         az, el = compute_az_el(sats, receiver_cart, receiver_lat, receiver_lon)
-        for prn, a, e in zip(sats["satellite"], az, el):
+        for prn, a, e in zip(sats["satellite"], az, el): # erstellt für jeden Satellit Elevation & Azimut für alle Zeiptunkte
             records.append({
                 "datetime": t,
                 "satellite": prn,
@@ -210,27 +205,27 @@ def compute_az_el_time_series(ecef, receiver_cart, receiver_lat, receiver_lon): 
     return pd.DataFrame(records)
 
 
-def compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg=0): #berechnet DOP für eine Epoche --> AUCH NOCHMAL ERKLÄREN LASSEN
+def compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg=0): #berechnet DOP-Werte für eine Epoche
     G_rows = []
     visible_sats = []
     rx = np.array(receiver_cart)
-    for _, sat in sats.iterrows():
+    for _, sat in sats.iterrows(): 
         sat_vec = np.array([sat["X"], sat["Y"], sat["Z"]])
-        diff = sat_vec - rx
-        diff_neu = R_matrix.T @ diff
+        diff = sat_vec - rx #Differenz
+        diff_neu = R_matrix.T @ diff #N-E-U Rotationsmatrix des Empfängers mit Differenzvektor
         elev = 90 - np.degrees(np.arccos(diff_neu[2]/np.linalg.norm(diff_neu)))
-        if elev >= mask_angle_deg:
+        if elev >= mask_angle_deg: # wenn Elevation über Elevation Maske, wird der Satellit ausgewählt
             visible_sats.append(sat["satellite"])
             row = np.append(-diff/np.linalg.norm(diff), 1)
             G_rows.append(row)
 
     if len(G_rows) >= 4: 
-        G = np.vstack(G_rows)
-        Qx = np.linalg.inv(G.T @ G)
-        Q_ll = R_matrix.T @ Qx[:3, :3] @ R_matrix
-        pdop = np.sqrt(np.trace(Qx[:3, :3]))
-        hdop = np.sqrt(Q_ll[0,0] + Q_ll[1,1])
-        vdop = np.sqrt(Q_ll[2,2])
+        G = np.vstack(G_rows) # Designmatrix 
+        Qx = np.linalg.inv(G.T @ G) # Cofaktorenmatrix
+        Q_ll = R_matrix.T @ Qx[:3, :3] @ R_matrix # Cofaktorenmatrix in lokalem Horizontsystem
+        pdop = np.sqrt(np.trace(Qx[:3, :3])) # Wurzel aus 𝑞𝑥𝑥 +𝑞𝑦𝑦 +𝑞𝑧𝑧
+        hdop = np.sqrt(Q_ll[0,0] + Q_ll[1,1]) #Wurzel aus 𝑞𝑛𝑛 +𝑞𝑒𝑒 
+        vdop = np.sqrt(Q_ll[2,2]) #Wurzel aus 𝑞𝑢𝑢
     else:
         pdop, hdop, vdop = np.nan, np.nan, np.nan
 
@@ -241,18 +236,18 @@ def compute_dop_time_series(ecef_df, receiver_lat, receiver_lon, receiver_cart, 
     R_matrix = ecef_to_neu_matrix(receiver_lat, receiver_lon)
 
     pdop_list, hdop_list, vdop_list, visible_list = [], [], [], []
-
+    # für jeden Zeitpunkt die Satellitendaten extrahieren, wenn nur ein Satellit vorhanden ist --> in Datafrme konvertieren
     for t in times:
         sats = ecef_df.loc[t]
         if isinstance(sats, pd.Series):
             sats = sats.to_frame().T
-        sats = sats[~sats["satellite"].isin(exclude_prns)]
-        pdop, hdop, vdop, visible = compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg)
+        sats = sats[~sats["satellite"].isin(exclude_prns)] #aufgrund von Elevation-Mask ausgeschlossene Satelliten werden rausgefiltert
+        pdop, hdop, vdop, visible = compute_dop_epoch(sats, receiver_cart, R_matrix, mask_angle_deg) #Berechnung der DOP-Werte
         pdop_list.append(pdop)
         hdop_list.append(hdop)
         vdop_list.append(vdop)
         visible_list.append((visible))
-
+    #Dataframe mit den Ergebnissen
     return pd.DataFrame({
         "PDOP": pdop_list,
         "HDOP": hdop_list,
